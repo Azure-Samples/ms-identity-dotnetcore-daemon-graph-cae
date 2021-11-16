@@ -108,7 +108,7 @@ namespace daemon_console
                 _app = ConfidentialClientApplicationBuilder.Create(_config.ClientId)
                     .WithClientSecret(_config.ClientSecret)
                     .WithAuthority(new Uri(_config.Authority))
-                    .WithClientCapabilities(new[] { "cp1" })
+                    .WithClientCapabilities(new[] { "cp1" }) // Declare this app to be able to receive CAE events
                     .Build();
             }
 
@@ -118,7 +118,7 @@ namespace daemon_console
                 _app = ConfidentialClientApplicationBuilder.Create(_config.ClientId)
                     .WithCertificate(certificate)
                     .WithAuthority(new Uri(_config.Authority))
-                    .WithClientCapabilities(new[] { "cp1" })
+                    .WithClientCapabilities(new[] { "cp1" }) // Declare this app to be able to receive CAE events
                     .Build();
             }
 

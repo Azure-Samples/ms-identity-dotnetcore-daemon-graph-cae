@@ -170,7 +170,7 @@ Start the application, it will display the users in the tenant.
 
 [Continues Access Evaluation](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation) can now be tested by adding the service principal of this app to a Conditional Access policy and then disabling the Service Principal via PowerShell.
 
-### Checking CAE by [creating blocking Conditional Access policy](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-conditional-access-policies)
+### Creating a [Conditional Access policy](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-conditional-access-policies) for this app and CAE events
 
 1. Go to Azure Active Directory
 1. Open Security/Conditional Access
@@ -185,6 +185,20 @@ Start the application, it will display the users in the tenant.
 1. Press "Create" button
 1. Run daemon application and observe the terminal. After some time you will start seeing error like this: ![policy-blocking-error](./ReadmeFiles/access-policy-blocking.png)
 1. To stop this behavior you either turn the policy Off or delete it. Then after some time the terminal will start displaying Graph data as usual.
+
+### Declaring Client Capability
+
+Azure AD and the CAE enabled resources, like MS Graph in this example, would not raise CAE events unless the client (this app) declares itself to be capable of handling CAE events.
+This is done by sending a [client capability](https://docs.microsoft.com/azure/active-directory/develop/claims-challenge#client-capabilities) declaration to Azure AD.
+
+The following code is added.
+
+[TODO]
+
+Once the client application announces that its capable, two changes take place:
+
+1. Azure AD sends an Access Token for MS Graph which is valid for 24 hours instead of the standard 1 hour.
+1. MS graph will receive CAE events and can potentially reject a valid Access token from a capable client if a CAA event occurs.
 
 ### Checking CAE by disabling Service Principal
 
