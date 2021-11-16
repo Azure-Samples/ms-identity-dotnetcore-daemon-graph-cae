@@ -20,18 +20,25 @@ namespace daemon_console
     /// </summary>
     class Program
     {
+        // Even if this is a console application here, a daemon application is a confidential client application
+        private static IConfidentialClientApplication _app;
+        private static MSALAppMemoryTokenCache _tokenCache;
+        private static AuthenticationConfig _config;
 
         static void Main(string[] args)
         {
-            var timeout = 5000;
+            _config = AuthenticationConfig.ReadFromJsonFile("appsettings.json");
 
+            PrepareConfidentialClient();
+
+            var timeout = 5000;
             Console.WriteLine($"The Graph Api will be called every {timeout / 1000} seconds unless any key was pressed.");
 
             var timer = new TimersTimer(timeout);
             timer.Elapsed += CallGraphApi;
 
             timer.AutoReset = true;
-            timer.Enabled = true;                       
+            timer.Enabled = true;
 
             Console.WriteLine("Press any key to exit");
             Console.ReadKey();
@@ -53,41 +60,18 @@ namespace daemon_console
 
         private static async Task RunAsync()
         {
-            AuthenticationConfig config = AuthenticationConfig.ReadFromJsonFile("appsettings.json");
-
-            // You can run this sample using ClientSecret or Certificate. The code will differ only when instantiating the IConfidentialClientApplication
-            bool isUsingClientSecret = AppUsesClientSecret(config);
-
-            // Even if this is a console application here, a daemon application is a confidential client application
-            IConfidentialClientApplication app;
-
-            if (isUsingClientSecret)
-            {
-                app = ConfidentialClientApplicationBuilder.Create(config.ClientId)
-                    .WithClientSecret(config.ClientSecret)
-                    .WithAuthority(new Uri(config.Authority))
-                    .Build();
-            }
-
-            else
-            {
-                X509Certificate2 certificate = ReadCertificate(config.CertificateName);
-                app = ConfidentialClientApplicationBuilder.Create(config.ClientId)
-                    .WithCertificate(certificate)
-                    .WithAuthority(new Uri(config.Authority))
-                    .Build();
-            }
 
             // With client credentials flows the scopes is ALWAYS of the shape "resource/.default", as the 
             // application permissions need to be set statically (in the portal or by PowerShell), and then granted by
             // a tenant administrator. 
-            string[] scopes = new string[] { $"{config.ApiUrl}.default" };
+            string[] scopes = new string[] { $"{_config.ApiUrl}.default" };
 
             AuthenticationResult result = null;
             try
             {
-                result = await app.AcquireTokenForClient(scopes)
+                result = await _app.AcquireTokenForClient(scopes)
                     .ExecuteAsync();
+
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Token acquired");
                 Console.ResetColor();
@@ -105,8 +89,41 @@ namespace daemon_console
             {
                 var httpClient = new HttpClient();
                 var apiCaller = new ProtectedApiCallHelper(httpClient);
-                await apiCaller.CallWebApiAndProcessResultASync($"{config.ApiUrl}v1.0/users", result.AccessToken, Display);
+                await apiCaller.CallWebApiAndProcessResultASync($"{_config.ApiUrl}v1.0/users", result.AccessToken, Display);
             }
+        }
+
+        /// <summary>
+        /// Prepares the confidential client.
+        /// </summary>
+        /// <returns></returns>
+        private static void PrepareConfidentialClient()
+        {            
+
+            // You can run this sample using ClientSecret or Certificate. The code will differ only when instantiating the IConfidentialClientApplication
+            bool isUsingClientSecret = AppUsesClientSecret(_config);
+
+            if (isUsingClientSecret)
+            {
+                _app = ConfidentialClientApplicationBuilder.Create(_config.ClientId)
+                    .WithClientSecret(_config.ClientSecret)
+                    .WithAuthority(new Uri(_config.Authority))
+                    .WithClientCapabilities(new[] { "cp1" })
+                    .Build();
+            }
+
+            else
+            {
+                X509Certificate2 certificate = ReadCertificate(_config.CertificateName);
+                _app = ConfidentialClientApplicationBuilder.Create(_config.ClientId)
+                    .WithCertificate(certificate)
+                    .WithAuthority(new Uri(_config.Authority))
+                    .WithClientCapabilities(new[] { "cp1" })
+                    .Build();
+            }
+
+            // Attach a token cache
+            _tokenCache = new MSALAppMemoryTokenCache(_app.AppTokenCache, _config.ClientId);
         }
 
         /// <summary>

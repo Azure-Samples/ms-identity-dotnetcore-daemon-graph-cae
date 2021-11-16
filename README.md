@@ -62,8 +62,7 @@ To run this sample, you'll need:
 From your shell or command line:
 
 ```Shell
-git clone https://github.com/Azure-Samples/
-ms-identity-dotnetcore-daemon-graph-cae.git
+git clone https://github.com/Azure-Samples/ms-identity-dotnetcore-daemon-graph-cae.git
 ```
 
 or download and extract the repository .zip file.
@@ -80,16 +79,21 @@ There is one project in this sample. To register it, you can:
   - modify the Visual Studio projects' configuration files.
 
 If you want to use this automation:
+
 1. On Windows run PowerShell and navigate to the root of the cloned directory
 1. In PowerShell run:
+
    ```PowerShell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
    ```
+
 1. Run the script to create your Azure AD application and configure the code of the sample application accordingly. 
+
    ```PowerShell
    cd AppCreationScripts
    .\Configure.ps1
    ```
+
    > Other ways of running the scripts are described in [App Creation Scripts](./AppCreationScripts/AppCreationScripts.md)
 
 1. Open the Visual Studio solution and click start
@@ -160,9 +164,9 @@ Start the application, it will display the users in the tenant.
 
 ## Testing CAE
 
-[Continues Access Evaluation](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-continuous-access-evaluation) may be tested by adding a service principal to a blocking conditional policy or by disabling the service principal through PowerShell CLI.
+[Continues Access Evaluation](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation) may be tested by adding a service principal to a blocking conditional policy or by disabling the service principal through PowerShell CLI.
 
-### Checking CAE by [creating blocking Conditional Access policy](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-conditional-access-policies)
+### Checking CAE by [creating blocking Conditional Access policy](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-conditional-access-policies)
 
 1. Go to Azure Active Directory
 1. Open Security/Conditional Access
@@ -184,7 +188,7 @@ Start the application, it will display the users in the tenant.
 1. Open PowerShell as Administrator
 1. Install Azure AD by running install command: **Install-Module AzureAD**
 1. Connect to AzureAD: **Connect-AzureAD**, if you're using PPE, use **-AzureEnvironmentName AzurePPE**
-1. Find the object ID of your Service Principal: **GetAzureADServicePrincipal -SearchString "daemon-service"**
+1. Find the object ID of your Service Principal: **Get-AzureADServicePrincipal -SearchString "daemon-console"**
 1. To disable Service Principal: **Set-AzureADServicePrincipal -ObjectId \<Id\> -AccountEnabled $False**
 1. Observe the daemon application terminal and note that after some time you will start getting next error ![sp-disabled-error](./ReadmeFiles/sp-disabled-error.png)
 1. In usual case, the error would appear only after token expiration, but CAE invalidates it much faster, almost immediately.
