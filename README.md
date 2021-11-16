@@ -1,16 +1,16 @@
 ---
 topic: sample
 languages:
-  - csharp
-  - azurepowershell
+- csharp
+- powershell
 products:
   - azure-active-directory
   - dotnet-core
   - office-ms-graph
-description: "Shows how a daemon console app uses MSAL.NET to get an access token and call Microsoft Graph."
+description: "A .NET Core daemon app authenticating as itself using client credentials to call Graph and handling CAE events"
 ---
 
-# A .NET Core 5 simple daemon console application calling Microsoft Graph with its own identity for testing [CAE](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-continuous-access-evaluation)
+# A .NET Core daemon app authenticating as itself using client credentials to call Graph and handling CAE events
 
 [![Build status](https://identitydivision.visualstudio.com/IDDP/_apis/build/status/AAD%20Samples/.NET%20client%20samples/active-directory-dotnetcore-daemon-v2%20CI)](https://identitydivision.visualstudio.com/IDDP/_build/latest?definitionId=695)
 
@@ -18,44 +18,48 @@ description: "Shows how a daemon console app uses MSAL.NET to get an access toke
 
 ### Overview
 
-This sample application shows how to use the [Microsoft identity platform endpoint](http://aka.ms/aadv2) to access the data of Microsoft business customers in a long-running, non-interactive process.  It uses the [OAuth 2 client credentials grant](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow) to acquire an access token, which can be used to call the [Microsoft Graph](https://graph.microsoft.io) and access organizational data
+This sample application shows how to use the [Microsoft identity platform endpoint](https://aka.ms/aadv2) to access the data of Microsoft business customers in a long-running, non-interactive process.  It uses the [OAuth 2 client credentials grant](https://docs.microsoft.com/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow) to acquire an access token, which it uses to then call the [Microsoft Graph](https://graph.microsoft.io) and access organizational data.
 
-The app is a .NET Core 5 Console application. It gets the list of users in an Azure AD tenant by using `Microsoft Authentication Library (MSAL) for .NET` to acquire a token.
+Additionally, the sample shows developers how to enable [Continuous access evaluation\(CAE\)](https://aka.ms/cae) in a tenant and use a [Conditional Access\(CA\)](https://docs.microsoft.com/azure/active-directory/conditional-access/) policy to enforce CAE events for this application.
 
 ## Scenario
 
-The console application:
+The app is a .NET Core Console application. It gets the list of users from MS Graph in an Azure AD tenant by using Microsoft Authentication Library for .NET ([MSAL.NET](https://aka.ms/msal-net)) to acquire a token for MS Graph.
 
-- runs in the loop of 5 seconds
-- gets a token from Azure AD in its own name (without a user)
-- and then calls the Microsoft Graph /users endpoint to get the list of user, which it then displays (as Json blob)
-- the application will indicate an error once
+First [CAE is enabled](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation#enable-or-disable-cae-preview) for the tenant and a CA policy created/updated to raise CAE events for this application's [Service Principal](https://aka.ms/serviceprincipal).
+
+Then the console application:
+
+- authenticates as itself (using Client Credentials flow) and gets an [Access Token](https://aka.ms/access-tokens) from Azure AD for Microsoft Graph.
+- It then calls the MS Graph API to fetch a list of users in a loop of 5 seconds.
+- the developer can then use the provided steps to disable the Service Principal (SP) of this app.
+- Once the SP is disabled, MS Graph will reject the Access Token even though its still within its validity.
 
 ![Topology](./ReadmeFiles/topology.png)
 
 For more information on the concepts used in this sample, be sure to read the [Microsoft identity platform endpoint client credentials protocol documentation](https://azure.microsoft.com/documentation/articles/active-directory-v2-protocols-oauth-client-creds).
 
-- Developers who wish to gain good familiarity of programming for Microsoft Graph are advised to go through the [An introduction to Microsoft Graph for developers](https://www.youtube.com/watch?v=EBbnpFdB92A) recorded session. 
+- Developers who wish to gain good familiarity of programming for Microsoft Graph are advised to go through the [An introduction to Microsoft Graph for developers](https://www.youtube.com/watch?v=EBbnpFdB92A) recorded session.
 
 > ### Daemon applications can use two forms of secrets to authenticate themselves with Azure AD:
 >
-> - **application secrets** (also named application password).
-> - **certificates**.
+> - **Application secrets** (also called application password or client secrets).
+> - **Certificates**.
 >
-> The first form (application secret) is treated in the next paragraphs.
-> A variation of this sample using a **certificate** instead, is available at the end of this article in [Variation: daemon application using client credentials with certificates](#Variation-daemon-application-using-client-credentials-with-certificates)
+> The first one (client secret) is covered in the following sections.
+> A variation of this sample that uses a **certificate** instead of *Client secrets** is also provided at the end of this article in [Variation: daemon application using client credentials with certificates](#Variation-daemon-application-using-client-credentials-with-certificates)
 
 ## How to run this sample
 
 To run this sample, you'll need:
 
-- [Visual Studio 2017](https://aka.ms/vsdownload) or newer, or just the [.NET Core SDK](https://www.microsoft.com/net/learn/get-started)
+- [Visual Studio](https://aka.ms/vsdownload) or newer, or just the [.NET Core SDK](https://www.microsoft.com/net/learn/get-started)
 - An Internet connection
 - A Windows machine (necessary if you want to run the app on Windows)
 - An OS X machine (necessary if you want to run the app on Mac)
 - A Linux machine (necessary if you want to run the app on Linux)
-- An Azure Active Directory (Azure AD) tenant. For more information on how to get an Azure AD tenant, see [How to get an Azure AD tenant](https://azure.microsoft.com/en-us/documentation/articles/active-directory-howto-tenant/)
-- A user account in your Azure AD tenant. This sample will not work with a Microsoft account (formerly Windows Live account). Therefore, if you signed in to the [Azure portal](https://portal.azure.com) with a Microsoft account and have never created a user account in your directory before, you need to do that now.
+- An Azure Active Directory (Azure AD) tenant. For more information on how to get an Azure AD tenant, see [How to get an Azure AD tenant](https://azure.microsoft.com/documentation/articles/active-directory-howto-tenant/)
+- A user account in your Azure AD tenant to make the app registration.
 
 ### Step 1:  Clone or download this repository
 
@@ -87,7 +91,7 @@ If you want to use this automation:
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
    ```
 
-1. Run the script to create your Azure AD application and configure the code of the sample application accordingly. 
+1. Run the script to create your Azure AD application and configure the code of the sample application accordingly.
 
    ```PowerShell
    cd AppCreationScripts
@@ -162,9 +166,9 @@ Start the application, it will display the users in the tenant.
 
 > [Consider taking a moment to share your experience with us.](https://forms.office.com/Pages/ResponsePage.aspx?id=v4j5cvGGr0GRqy180BHbRy8G199fkJNDjJ9kJaxUJIhUNUJGSDU1UkxFMlRSWUxGVTlFVkpGT0tOTi4u)
 
-## Testing CAE
+## Testing CAE events
 
-[Continues Access Evaluation](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation) may be tested by adding a service principal to a blocking conditional policy or by disabling the service principal through PowerShell CLI.
+[Continues Access Evaluation](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation) can now be tested by adding the service principal of this app to a Conditional Access policy and then disabling the Service Principal via PowerShell.
 
 ### Checking CAE by [creating blocking Conditional Access policy](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-conditional-access-policies)
 
@@ -180,19 +184,38 @@ Start the application, it will display the users in the tenant.
 1. Enable policy - set it to On
 1. Press "Create" button
 1. Run daemon application and observe the terminal. After some time you will start seeing error like this: ![policy-blocking-error](./ReadmeFiles/access-policy-blocking.png)
-1. To stop this behaviour you either turn the policy Off or delete it. Then after some time the terminal will start displaying Graph data as usual.
+1. To stop this behavior you either turn the policy Off or delete it. Then after some time the terminal will start displaying Graph data as usual.
 
 ### Checking CAE by disabling Service Principal
 
 1. Run the application and make sure you get users graph data in continues manner. Leave the application in running state.
-1. Open PowerShell as Administrator
-1. Install Azure AD by running install command: **Install-Module AzureAD**
-1. Connect to AzureAD: **Connect-AzureAD**, if you're using PPE, use **-AzureEnvironmentName AzurePPE**
-1. Find the object ID of your Service Principal: **Get-AzureADServicePrincipal -SearchString "daemon-console"**
-1. To disable Service Principal: **Set-AzureADServicePrincipal -ObjectId \<Id\> -AccountEnabled $False**
+1. Open PowerShell as Administrator.
+1. Use the following set of PowerShell commands to locate and disable the Service Principal of this application
+
+   ```PowerShell
+   # install the Azure AD powershell if not already present
+   Install-Module AzureAD
+
+   # Connect to your Azure AD tenant
+   Connect-AzureAD -TenantId <your tenantid>
+
+   # locate the Service Principal of this app, copy its object id
+   Get-AzureADServicePrincipal -SearchString "daemon-console"
+
+   # Disable the service principal of this app
+   Set-AzureADServicePrincipal -ObjectId \<Id\> -AccountEnabled $False
+   ```
+
+>if you're using an Azure environment other than global, like PPE, use [-AzureEnvironmentName AzurePPE](https://docs.microsoft.com/powershell/module/azuread/connect-azuread)
+
 1. Observe the daemon application terminal and note that after some time you will start getting next error ![sp-disabled-error](./ReadmeFiles/sp-disabled-error.png)
-1. In usual case, the error would appear only after token expiration, but CAE invalidates it much faster, almost immediately.
-1. Re-enable the Service Principal: **Set-AzureADServicePrincipal -ObjectId \<Id\> -AccountEnabled $True**
+1.You can re-test this scenario by re-enabling the Service Principal using the following command.
+
+   ```PowerShell
+
+   # Disable the service principal of this app
+   Set-AzureADServicePrincipal -ObjectId \<Id\> -AccountEnabled $True
+   ```
 
 ## About the code
 
@@ -286,23 +309,27 @@ To use certificates instead of an application secret you will need to do little 
 ### (Optional) use the automation script
 
 If you want to use the automation script:
+
 1. On Windows run PowerShell and navigate to the root of the cloned directory
 1. In PowerShell run:
+
    ```PowerShell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
    ```
+
 1. Run the script to create your Azure AD application and configure the code of the sample application accordingly. 
+
    ```PowerShell
    .\AppCreationScripts-WtihCert\Configure.ps1
    ```
-   > Other ways of running the scripts are described in [App Creation Scripts](./AppCreationScripts-WithCert/AppCreationScripts.md)
 
+   > Other ways of running the scripts are described in [App Creation Scripts](./AppCreationScripts-WithCert/AppCreationScripts.md)
 
 If you don't want to use this automation, follow the following steps:
 
 ### (Optional) Create a self-signed certificate
 
-To complete this step, you will use the `New-SelfSignedCertificate` Powershell command. You can find more information about the New-SelfSignedCertificat command [here](https://docs.microsoft.com/en-us/powershell/module/pkiclient/new-selfsignedcertificate).
+To complete this step, you will use the `New-SelfSignedCertificate` Powershell command. You can find more information about the New-SelfSignedCertificat command [here](https://docs.microsoft.com/powershell/module/pkiclient/new-selfsignedcertificate).
 
 1. Open PowerShell and run New-SelfSignedCertificate with the following parameters to create a self-signed certificate in the user certificate store on your computer:
 
@@ -311,7 +338,7 @@ To complete this step, you will use the `New-SelfSignedCertificate` Powershell c
     ```
 
 1. Export this certificate using the "Manage User Certificate" MMC snap-in accessible from the Windows Control Panel. You can also add other options to generate the certificate in a different
-store such as the Computer or service store (See [How to: View Certificates with the MMC Snap-in](https://docs.microsoft.com/en-us/dotnet/framework/wcf/feature-details/how-to-view-certificates-with-the-mmc-snap-in)).
+store such as the Computer or service store (See [How to: View Certificates with the MMC Snap-in](https://docs.microsoft.com/dotnet/framework/wcf/feature-details/how-to-view-certificates-with-the-mmc-snap-in)).
 
 Alternatively you can use an existing certificate if you have one (just be sure to record its name for the next steps)
 
@@ -383,6 +410,6 @@ For more information, see MSAL.NET's conceptual documentation:
 
 For more information about the underlying protocol:
 
-- [Microsoft identity platform and the OAuth 2.0 client credentials flow](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow)
+- [Microsoft identity platform and the OAuth 2.0 client credentials flow](https://docs.microsoft.com/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow)
 
 For a more complex multi-tenant Web app daemon application, see [active-directory-dotnet-daemon-v2](https://github.com/Azure-Samples/active-directory-dotnet-daemon-v2)

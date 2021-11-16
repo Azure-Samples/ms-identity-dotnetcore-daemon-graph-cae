@@ -1,7 +1,7 @@
 {
   "Sample": {
-    "Title": "A .NET Core 2.x simple daemon console application calling the graph with its own identity",
-    "Level": 200,
+    "Title": "A .NET Core daemon app authenticating as itself using client credentials to call Graph and handling CAE events",
+    "Level": 300,
     "Client": ".NET Core (Console)",
     "Service": "Microsoft Graph",
     "RepositoryUrl": "active-directory-dotnetcore-daemon-v2",
@@ -14,7 +14,7 @@
   "AADApps": [
     {
       "Id": "client",
-      "Name": "daemon-console",
+      "Name": "daemon-console-cae-cert",
       "Kind": "Daemon",
       "Audience": "AzureADMyOrg",
       "Certificate": "CN=DaemonConsoleCert",
