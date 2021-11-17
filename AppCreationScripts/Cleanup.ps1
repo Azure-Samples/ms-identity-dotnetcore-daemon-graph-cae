@@ -7,22 +7,26 @@ param(
     [string] $azureEnvironmentName
 )
 
-if ((Get-Module -ListAvailable -Name "AzureAD") -eq $null) { 
-    Install-Module "AzureAD" -Scope CurrentUser 
+#Requires -Modules AzureAD -RunAsAdministrator
+
+
+if ($null -eq (Get-Module -ListAvailable -Name "AzureAD")) { 
+    Install-Module "AzureAD" -Scope CurrentUser                                            
 } 
 Import-Module AzureAD
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = "Stop"
 
 Function Cleanup
 {
-if (!$azureEnvironmentName)
+    if (!$azureEnvironmentName)
     {
         $azureEnvironmentName = "AzureCloud"
     }
-<#
-.Description
-This function removes the Azure AD applications for the sample. These applications were created by the Configure.ps1 script
-#>
+
+    <#
+    .Description
+    This function removes the Azure AD applications for the sample. These applications were created by the Configure.ps1 script
+    #>
 
     # $tenantId is the Active Directory Tenant. This is a GUID which represents the "Directory ID" of the AzureAD tenant 
     # into which you want to create the apps. Look it up in the Azure portal in the "Properties" of the Azure AD. 
@@ -50,20 +54,41 @@ This function removes the Azure AD applications for the sample. These applicatio
         $tenantId = $creds.Tenant.Id
     }
     $tenant = Get-AzureADTenantDetail
-    $tenantName =  ($tenant.VerifiedDomains | Where { $_._Default -eq $True }).Name
+    $tenantName =  ($tenant.VerifiedDomains | Where-Object { $_._Default -eq $True }).Name
     
     # Removes the applications
     Write-Host "Cleaning-up applications from tenant '$tenantName'"
 
-    Write-Host "Removing 'client' (daemon-console) if needed"
-    $app=Get-AzureADApplication -Filter "DisplayName eq 'daemon-console'"  
-
-    if ($app)
+    Write-Host "Removing 'client' (daemon-console-cae) if needed"
+    try
     {
-        Remove-AzureADApplication -ObjectId $app.ObjectId
-        Write-Host "Removed."
+        Get-AzureADApplication -Filter "DisplayName eq 'daemon-console-cae'"  | ForEach-Object {Remove-AzureADApplication -ObjectId $_.ObjectId }
+    }
+    catch
+    {
+	    Write-Host "Unable to remove the 'daemon-console-cae' . Try deleting manually." -ForegroundColor White -BackgroundColor Red
+    }
+    $apps = Get-AzureADApplication -Filter "DisplayName eq 'daemon-console-cae'"
+    if ($apps)
+    {
+        Remove-AzureADApplication -ObjectId $apps.ObjectId
     }
 
+    foreach ($app in $apps) 
+    {
+        Remove-AzureADApplication -ObjectId $app.ObjectId
+        Write-Host "Removed daemon-console-cae.."
+    }
+    # also remove service principals of this app
+    try
+    {
+        Get-AzureADServicePrincipal -filter "DisplayName eq 'daemon-console-cae'" | ForEach-Object {Remove-AzureADServicePrincipal -ObjectId $_.Id -Confirm:$false}
+    }
+    catch
+    {
+	    Write-Host "Unable to remove ServicePrincipal 'daemon-console-cae' . Try deleting manually from Enterprise applications." -ForegroundColor White -BackgroundColor Red
+    }
 }
 
 Cleanup -Credential $Credential -tenantId $TenantId
+

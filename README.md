@@ -1,24 +1,35 @@
 ---
-topic: sample
+page_type: sample
 languages:
 - csharp
 - powershell
 products:
-  - azure-active-directory
   - dotnet-core
+  - ms-graph
+  - azure-active-directory
   - office-ms-graph
-description: "A .NET Core daemon app authenticating as itself using client credentials to call Graph and handling CAE events"
+description: A .NET Core daemon app authenticating as itself using client credentials to call Graph and handling CAE events
 ---
-
 # A .NET Core daemon app authenticating as itself using client credentials to call Graph and handling CAE events
 
-[![Build status](https://identitydivision.visualstudio.com/IDDP/_apis/build/status/AAD%20Samples/.NET%20client%20samples/active-directory-dotnetcore-daemon-v2%20CI)](https://identitydivision.visualstudio.com/IDDP/_build/latest?definitionId=695)
+ 1. [Overview](#overview)
+ 1. [Scenario](#scenario)
+ 1. [Contents](#contents)
+ 1. [Prerequisites](#prerequisites)
+ 1. [Setup](#setup)
+ 1. [Registration](#registration)
+ 1. [Running the sample](#running-the-sample)
+ 1. [Explore the sample](#explore-the-sample)
+ 1. [About the code](#about-the-code)
+ 1. [Deployment](#deployment)
+ 1. [More information](#more-information)
+ 1. [Community Help and Support](#community-help-and-support)
+ 1. [Contributing](#contributing)
 
-## About this sample
 
-### Overview
+## Overview
 
-This sample application shows how to use the [Microsoft identity platform endpoint](https://aka.ms/aadv2) to access the data of Microsoft business customers in a long-running, non-interactive process.  It uses the [OAuth 2 client credentials grant](https://docs.microsoft.com/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow) to acquire an access token, which it uses to then call the [Microsoft Graph](https://graph.microsoft.io) and access organizational data.
+This sample application shows how to use the [Microsoft identity platform endpoint](https://aka.ms/aadv2) to access the data of Microsoft business customers in a long-running, non-interactive process.  It uses the [OAuth 2 client credentials grant](https://docs.microsoft.com/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow) to acquire an access token, which it uses to then call the [Microsoft Graph](https://graph.microsoft.io) and access organizational data. This flow of authentication is also sometimes referred to as **Service Principal (SP) authentication**.  
 
 Additionally, the sample shows developers how to enable [Continuous access evaluation\(CAE\)](https://aka.ms/cae) in a tenant and use a [Conditional Access\(CA\)](https://docs.microsoft.com/azure/active-directory/conditional-access/) policy to enforce CAE events for this application.
 
@@ -26,32 +37,18 @@ Additionally, the sample shows developers how to enable [Continuous access evalu
 
 The app is a .NET Core Console application. It gets the list of users from MS Graph in an Azure AD tenant by using Microsoft Authentication Library for .NET ([MSAL.NET](https://aka.ms/msal-net)) to acquire a token for MS Graph.
 
-First [CAE is enabled](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation#enable-or-disable-cae-preview) for the tenant and a CA policy created/updated to raise CAE events for this application's [Service Principal](https://aka.ms/serviceprincipal).
+We then [enable CAE](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation#enable-or-disable-cae-preview) for the tenant and a CA policy created/updated to apply CAE events for this application's [Service Principal](https://aka.ms/serviceprincipal). 
 
-Then the console application:
+The order of processing is roughly as follows:
 
-- authenticates as itself (using Client Credentials flow) and gets an [Access Token](https://aka.ms/access-tokens) from Azure AD for Microsoft Graph.
+- The console app first authenticates as itself (using the [Client Credentials flow](https://docs.microsoft.com/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow)) and gets an [Access Token](https://aka.ms/access-tokens) from Azure AD for Microsoft Graph.
 - It then calls the MS Graph API to fetch a list of users in a loop of 5 seconds.
-- the developer can then use the provided steps to disable the Service Principal (SP) of this app.
-- Once the SP is disabled, MS Graph will reject the Access Token even though its still within its validity.
+- the developer can then use the provided steps to disable the Service Principal (SP) of this app. This raises a CAE event for MS Graph.
+- Once the SP is disabled, MS Graph will then reject the Access Token even though its still within its validity.
 
 ![Topology](./ReadmeFiles/topology.png)
 
-For more information on the concepts used in this sample, be sure to read the [Microsoft identity platform endpoint client credentials protocol documentation](https://azure.microsoft.com/documentation/articles/active-directory-v2-protocols-oauth-client-creds).
-
-- Developers who wish to gain good familiarity of programming for Microsoft Graph are advised to go through the [An introduction to Microsoft Graph for developers](https://www.youtube.com/watch?v=EBbnpFdB92A) recorded session.
-
-> ### Daemon applications can use two forms of secrets to authenticate themselves with Azure AD:
->
-> - **Application secrets** (also called application password or client secrets).
-> - **Certificates**.
->
-> The first one (client secret) is covered in the following sections.
-> A variation of this sample that uses a **certificate** instead of *Client secrets** is also provided at the end of this article in [Variation: daemon application using client credentials with certificates](#Variation-daemon-application-using-client-credentials-with-certificates)
-
-## How to run this sample
-
-To run this sample, you'll need:
+## Prerequisites
 
 - [Visual Studio](https://aka.ms/vsdownload) or newer, or just the [.NET Core SDK](https://www.microsoft.com/net/learn/get-started)
 - An Internet connection
@@ -61,30 +58,46 @@ To run this sample, you'll need:
 - An Azure Active Directory (Azure AD) tenant. For more information on how to get an Azure AD tenant, see [How to get an Azure AD tenant](https://azure.microsoft.com/documentation/articles/active-directory-howto-tenant/)
 - A user account in your Azure AD tenant to make the app registration.
 
+For more information on the concepts used in this sample, be sure to read the [Microsoft identity platform endpoint client credentials protocol documentation](https://azure.microsoft.com/documentation/articles/active-directory-v2-protocols-oauth-client-creds).
+
+- Developers who wish to gain good familiarity of programming for Microsoft Graph are advised to go through the [An introduction to Microsoft Graph for developers](https://www.youtube.com/watch?v=EBbnpFdB92A) recorded session.
+
+## Setup
+
 ### Step 1:  Clone or download this repository
 
 From your shell or command line:
 
-```Shell
+```console
 git clone https://github.com/Azure-Samples/ms-identity-dotnetcore-daemon-graph-cae.git
 ```
 
 or download and extract the repository .zip file.
 
-> Given that the name of the sample is pretty long, and so are the name of the referenced NuGet packages, you might want to clone it in a folder close to the root of your hard drive, to avoid file size limitations on Windows.
+> :warning: To avoid path length limitations on Windows, we recommend cloning into a directory near the root of your drive.
 
-### Step 2:  Register the sample with your Azure Active Directory tenant
+### Step 2: Install project dependencies
+
+```console
+    dotnet restore
+```
+
+### Register the sample application(s) with your Azure Active Directory tenant
 
 There is one project in this sample. To register it, you can:
 
-- either follow the steps [Step 2: Register the sample with your Azure Active Directory tenant](#step-2-register-the-sample-with-your-azure-active-directory-tenant) and [Step 3:  Configure the sample to use your Azure AD tenant](#choose-the-azure-ad-tenant-where-you-want-to-create-your-applications)
+- follow the steps below for manually register your apps
 - or use PowerShell scripts that:
-  - **automatically** creates the Azure AD applications and related objects (passwords, permissions, dependencies) for you
-  - modify the Visual Studio projects' configuration files.
+  - **automatically** creates the Azure AD applications and related objects (passwords, permissions, dependencies) for you.
+  - modify the projects' configuration files.
 
-If you want to use this automation:
+<details>
+  <summary>Expand this section if you want to use this automation:</summary>
 
-1. On Windows run PowerShell and navigate to the root of the cloned directory
+> :warning: If you have never used **Azure AD Powershell** before, we recommend you go through the [App Creation Scripts](./AppCreationScripts/AppCreationScripts.md) once to ensure that your environment is prepared correctly for this step.
+
+1. On Windows, run PowerShell as **Administrator** and navigate to the root of the cloned directory
+1. If you have never used Azure AD Powershell before, we recommend you go through the [App Creation Scripts](./AppCreationScripts/AppCreationScripts.md) once to ensure that your environment is prepared correctly for this step.
 1. In PowerShell run:
 
    ```PowerShell
@@ -92,85 +105,84 @@ If you want to use this automation:
    ```
 
 1. Run the script to create your Azure AD application and configure the code of the sample application accordingly.
+1. In PowerShell run:
 
    ```PowerShell
-   cd AppCreationScripts
+   cd .\AppCreationScripts\
    .\Configure.ps1
    ```
 
    > Other ways of running the scripts are described in [App Creation Scripts](./AppCreationScripts/AppCreationScripts.md)
+   > The scripts also provide a guide to automated application registration, configuration and removal which can help in your CI/CD scenarios.
 
-1. Open the Visual Studio solution and click start
+</details>
 
-If you don't want to use this automation, follow the steps below
-
-#### Choose the Azure AD tenant where you want to create your applications
+### Choose the Azure AD tenant where you want to create your applications
 
 As a first step you'll need to:
 
-1. Sign in to the [Azure portal](https://portal.azure.com) using either a work or school account or a personal Microsoft account.
-1. If your account is present in more than one Azure AD tenant, select `Directory + Subscription` at the top right corner in the menu on top of the page, and switch your portal session to the desired Azure AD tenant.
-1. In the left-hand navigation pane, select the **Azure Active Directory** service, and then select **App registrations**.
+1. Sign in to the [Azure portal](https://portal.azure.com).
+1. If your account is present in more than one Azure AD tenant, select your profile at the top right corner in the menu on top of the page, and then **switch directory** to change your portal session to the desired Azure AD tenant.
 
-#### Register the client app (daemon-console)
+### Register the client app (daemon-console-cae)
 
-1. Navigate to the Microsoft identity platform for developers [App registrations](https://go.microsoft.com/fwlink/?linkid=2083908) page.
-1. Select **New registration**.
-   - In the **Name** section, enter a meaningful application name that will be displayed to users of the app, for example `daemon-console`.
-   - In the **Supported account types** section, select **Accounts in this organizational directory only ({tenant name})**.
-   - Select **Register** to create the application.
-1. On the app **Overview** page, find the **Application (client) ID** value and record it for later. You'll need it to configure the Visual Studio configuration file for this project.
-1. From the **Certificates & secrets** page, in the **Client secrets** section, choose **New client secret**:
-
+1. Navigate to the [Azure portal](https://portal.azure.com) and select the **Azure AD** service.
+1. Select the **App Registrations** blade on the left, then select **New registration**.
+1. In the **Register an application page** that appears, enter your application's registration information:
+   - In the **Name** section, enter a meaningful application name that will be displayed to users of the app, for example `daemon-console-cae`.
+   - Under **Supported account types**, select **Accounts in this organizational directory only**.
+   - In the **Redirect URI (optional)** section, select **Web** in the combo-box.
+   - For the *Redirect URI*, enter `https://<your_tenant_name>/daemon-console-cae`, replacing `<your_tenant_name>` with the name of your **Azure AD** tenant.
+1. Select **Register** to create the application.
+1. In the app's registration screen, find and note the **Application (client) ID**. You use this value in your app's configuration file(s) later in your code.
+1. Select **Save** to save your changes.
+1. In the app's registration screen, select the **Certificates & secrets** blade in the left to open the page where you can generate secrets and upload certificates.
+1. In the **Client secrets** section, select **New client secret**:
    - Type a key description (for instance `app secret`),
-   - Select a key duration of either **In 1 year**, **In 2 years**, or **Never Expires**.
-   - When you press the **Add** button, the key value will be displayed, copy, and save the value in a safe location.
-   - You'll need this key later to configure the project in Visual Studio. This key value will not be displayed again, nor retrievable by any other means,
-     so record it as soon as it is visible from the Azure portal.
-1. In the list of pages for the app, select **API permissions**
-   - Click the **Add a permission** button and then,
-   - Ensure that the **Microsoft APIs** tab is selected
-   - In the *Commonly used Microsoft APIs* section, click on **Microsoft Graph**
-   - In the **Application permissions** section, ensure that the right permissions are checked: **User.Read.All**
-   - Select the **Add permissions** button
+   - Select one of the available key durations (**6 months**, **12 months** or **Custom**) as per your security posture.
+   - The generated key value will be displayed when you select the **Add** button. Copy and save the generated value for use in later steps.
+   - You'll need this key later in your code's configuration files. This key value will not be displayed again, and is not retrievable by any other means, so make sure to note it from the Azure portal before navigating to any other screen or blade.
+    > :bulb: For enhanced security, consider [using certificates](https://github.com/AzureAD/microsoft-identity-web/wiki/Certificates) instead of client secrets.
+1. In the app's registration screen, select the **API permissions** blade in the left to open the page where we add access to the APIs that your application needs.
+   - Select the **Add a permission** button and then,
+   - Ensure that the **Microsoft APIs** tab is selected.
+   - In the *Commonly used Microsoft APIs* section, select **Microsoft Graph**
+   - In the **Application permissions** section, select the **User.Read.All** in the list. Use the search box if necessary.
+   - Select the **Add permissions** button at the bottom.
 
-1. At this stage permissions are assigned correctly but the client app does not allow interaction. 
-   Therefore no consent can be presented via a UI and accepted to use the service app. 
-   Click the **Grant/revoke admin consent for {tenant}** button, and then select **Yes** when you are asked if you want to grant consent for the
-   requested permissions for all account in the tenant.
-   You need to be an Azure AD tenant admin to do this.
+1. At this stage, the permissions are assigned correctly but since the client app does not allow users to interact, the users' themselves cannot consent to these permissions. 
+   To get around this problem, we'd let the [tenant administrator consent on behalf of all users in the tenant](https://docs.microsoft.com/azure/active-directory/develop/v2-admin-consent).
+   Select the **Grant admin consent for {tenant}** button, and then select **Yes** when you are asked if you want to grant consent for the requested permissions for all account in the tenant. You need to be an the tenant admin to be able to carry out this operation.
 
-### Step 3:  Configure the sample to use your Azure AD tenant
+#### Configure the client app (daemon-console-cae) to use your app registration
 
-In the steps below, "ClientID" is the same as "Application ID" or "AppId".
+Open the project in your IDE (like Visual Studio or Visual Studio Code) to configure the code.
 
-Open the solution in Visual Studio to configure the project
-
-#### Configure the client project
-
-> Note: if you used the setup scripts, the changes below will have been applied for you, with the exception of the national cloud specific steps.
+> In the steps below, "ClientID" is the same as "Application ID" or "AppId".
 
 1. Open the `daemon-console\appsettings.json` file.
-1. If you are connecting to a national cloud, change the instance to the correct Azure AD endpoint. [See this reference for a list of Azure AD endpoints.](https://docs.microsoft.com/graph/deployments#app-registration-and-token-service-root-endpoints)
-1. Find the app key `Tenant` and replace the existing value with your Azure AD tenant name.
-1. Find the app key `ClientId` and replace the existing value with the application ID (clientId) of the `daemon-console` application copied from the Azure portal.
-1. Find the app key `ClientSecret` and replace the existing value with the key you saved during the creation of the `daemon-console` app, in the Azure portal.
-1. If you are connecting to a national cloud, open the 'daemon-console\Program.cs' file.
-1. Change the graph endpoint on lines in which there is a "graph.microsoft.com" reference. [See this reference for more info on which graph endpoint to use.](https://docs.microsoft.com/graph/deployments#microsoft-graph-and-graph-explorer-service-root-endpoints)
+1. Find the key `Tenant` and replace the existing value with your Azure AD tenant name.
+1. Find the key `ClientId` and replace the existing value with the application ID (clientId) of `daemon-console-cae` app copied from the Azure portal.
+1. Find the key `ClientSecret` and replace the existing value with the key you saved during the creation of `daemon-console-cae` copied from the Azure portal.
 
-### Step 4: Run the sample
+## Running the sample
 
-Clean the solution, rebuild the solution, and run it.
+> For Visual Studio Users
+>
+> Clean the solution, rebuild the solution, and run it.  
+
+```console
+    cd daemon-console
+    dotnet run
+```
 
 Start the application, it will display the users in the tenant.
 
-> [Consider taking a moment to share your experience with us.](https://forms.office.com/Pages/ResponsePage.aspx?id=v4j5cvGGr0GRqy180BHbRy8G199fkJNDjJ9kJaxUJIhUNUJGSDU1UkxFMlRSWUxGVTlFVkpGT0tOTi4u)
-
 ## Testing CAE events
 
-[Continues Access Evaluation](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation) can now be tested by adding the service principal of this app to a Conditional Access policy and then disabling the Service Principal via PowerShell.
+[Continues Access Evaluation](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-continuous-access-evaluation) can now be tested by adding the Service Principal of this app to a Conditional Access policy and then disabling the Service Principal via PowerShell to raise the CAE event.
 
-### Creating a [Conditional Access policy](https://docs.microsoft.com/azure/active-directory/conditional-access/concept-conditional-access-policies) for this app and CAE events
+### Create/Update a Conditional Access policy] for this app and CAE events
 
 1. Go to Azure Active Directory
 1. Open Security/Conditional Access
@@ -214,7 +226,7 @@ Once the client application announces that its capable, two changes take place:
    Connect-AzureAD -TenantId <your tenantid>
 
    # locate the Service Principal of this app, copy its object id
-   Get-AzureADServicePrincipal -SearchString "daemon-console"
+   Get-AzureADServicePrincipal -SearchString "daemon-console-cae"
 
    # Disable the service principal of this app
    Set-AzureADServicePrincipal -ObjectId \<Id\> -AccountEnabled $False
@@ -287,7 +299,7 @@ The relevant code for this sample is in the `Program.cs` file, in the `RunAsync(
 ### Did you forget to provide admin consent? This is needed for daemon apps
 
 If you get an error when calling the API `Insufficient privileges to complete the operation.`, this is because the tenant administrator has not granted permissions
-to the application. See step 6 of [Register the client app (daemon-console)](#register-the-client-app-daemon-console) above.
+to the application. See step 6 of [Register the client app (daemon-console-cae)](#register-the-client-app-daemon-console-cae) above.
 
 You will typically see, on the output window, something like the following:
 
@@ -305,96 +317,6 @@ Content: {
 }
 ```
 
-## Variation: daemon application using client credentials with certificates
-
-Daemon applications can use two forms of secrets to authenticate themselves with Azure AD:
-
-- **application secrets** (also named application password). This is what we've seen so far.
-- **certificates**. This is the object of this paragraph.
-
-![Topology](./ReadmeFiles/topology-certificates.png)
-
-To use certificates instead of an application secret you will need to do little changes to what you have done so far:
-
-- (optionally) generate a certificate and export it, if you don't have one already
-- register the certificate with your application in the application registration portal
-- enable the sample code to use certificates instead of app secret.
-
-### (Optional) use the automation script
-
-If you want to use the automation script:
-
-1. On Windows run PowerShell and navigate to the root of the cloned directory
-1. In PowerShell run:
-
-   ```PowerShell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
-   ```
-
-1. Run the script to create your Azure AD application and configure the code of the sample application accordingly. 
-
-   ```PowerShell
-   .\AppCreationScripts-WtihCert\Configure.ps1
-   ```
-
-   > Other ways of running the scripts are described in [App Creation Scripts](./AppCreationScripts-WithCert/AppCreationScripts.md)
-
-If you don't want to use this automation, follow the following steps:
-
-### (Optional) Create a self-signed certificate
-
-To complete this step, you will use the `New-SelfSignedCertificate` Powershell command. You can find more information about the New-SelfSignedCertificat command [here](https://docs.microsoft.com/powershell/module/pkiclient/new-selfsignedcertificate).
-
-1. Open PowerShell and run New-SelfSignedCertificate with the following parameters to create a self-signed certificate in the user certificate store on your computer:
-
-    ```PowerShell
-    $cert=New-SelfSignedCertificate -Subject "CN=DaemonConsoleCert" -CertStoreLocation "Cert:\CurrentUser\My"  -KeyExportPolicy Exportable -KeySpec Signature
-    ```
-
-1. Export this certificate using the "Manage User Certificate" MMC snap-in accessible from the Windows Control Panel. You can also add other options to generate the certificate in a different
-store such as the Computer or service store (See [How to: View Certificates with the MMC Snap-in](https://docs.microsoft.com/dotnet/framework/wcf/feature-details/how-to-view-certificates-with-the-mmc-snap-in)).
-
-Alternatively you can use an existing certificate if you have one (just be sure to record its name for the next steps)
-
-### Add the certificate for the daemon-console application in Azure AD
-
-In the application registration blade for your application, in the **Certificates & secrets** page, in the **Certificates** section:
-
-1. Click on **Upload certificate** and, in click the browse button on the right to select the certificate you just exported (or your existing certificate)
-1. Click **Add**
-
-### Configure the Visual Studio project
-
-To change the visual studio project to enable certificates you need to:
-
-1. Open the `daemon-console\appsettings.json` file
-1. Find the app key `CertificateName` and replace the existing value with the name of your certificate (if you generated your own certificate from the instructions above, this should be `CN=DaemonConsoleCert`).
-1. If you had set `ClientSecret` previously, set its value to empty string, `""`.
-
-#### Build and run
-
-Build and run your project. You have the same output, but this time, your application is authenticated with Azure AD with the certificate instead of the application secret.
-
-#### About the alternate code
-
-The code change is the following: the `ClientCredentials` instance passed to the constructor of the `ConfidentialClientApplication` is now built from a `ClientAssertionCertificate` instance (built from the certificate) instead of from the application password
-
-```CSharp
-X509Certificate2 certificate = ReadCertificate(config.CertificateName);
-app = ConfidentialClientApplicationBuilder.Create(config.ClientId)
-                .WithCertificate(certificate)
-                .WithAuthority(new Uri(config.Authority))
-                .Build();
-```
-
-The rest of the application is the same. The sample also has a method to retrieve the certificate from the Windows certificate store (This part was not tested on linux)
-
-## Next Steps
-
-Learn how to:
-
-- [Create a daemon app that calls a Web API](https://github.com/Azure-Samples/active-directory-dotnetcore-daemon-v2/tree/master/2-Call-OwnApi)
-- [Integrate a daemon app with Key Vault and MSI](https://github.com/Azure-Samples/active-directory-dotnetcore-daemon-v2/tree/master/3-Using-KeyVault)
 
 ## Community Help and Support
 

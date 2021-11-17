@@ -94,7 +94,7 @@ namespace daemon_console
         }
 
         /// <summary>
-        /// Prepares the confidential client.
+        /// Prepares the MSAL's confidential client.
         /// </summary>
         /// <returns></returns>
         private static void PrepareConfidentialClient()

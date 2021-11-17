@@ -7,6 +7,8 @@ param(
     [string] $azureEnvironmentName
 )
 
+#Requires -Modules AzureAD -RunAsAdministrator
+
 <#
  This script creates the Azure AD applications needed for this sample and updates the configuration files
  for the visual Studio projects from the data in the Azure AD applications.
@@ -33,9 +35,9 @@ Function ComputePassword
 
 # Create an application key
 # See https://www.sabin.io/blog/adding-an-azure-active-directory-application-and-key-using-powershell/
-Function CreateAppKey([DateTime] $fromDate, [double] $durationInYears, [string]$pw)
+Function CreateAppKey([DateTime] $fromDate, [double] $durationInMonths, [string]$pw)
 {
-    $endDate = $fromDate.AddYears($durationInYears) 
+    $endDate = $fromDate.AddMonths($durationInMonths);
     $keyId = (New-Guid).ToString();
     $key = New-Object Microsoft.Open.AzureAD.Model.PasswordCredential
     $key.StartDate = $fromDate
@@ -67,7 +69,7 @@ Function AddResourcePermission($requiredAccess, `
 }
 
 #
-# Exemple: GetRequiredPermissions "Microsoft Graph"  "Graph.Read|User.Read"
+# Example: GetRequiredPermissions "Microsoft Graph"  "Graph.Read|User.Read"
 # See also: http://stackoverflow.com/questions/42164581/how-to-configure-a-new-azure-ad-application-through-powershell
 Function GetRequiredPermissions([string] $applicationDisplayName, [string] $requiredDelegatedPermissions, [string]$requiredApplicationPermissions, $servicePrincipal)
 {
@@ -100,56 +102,24 @@ Function GetRequiredPermissions([string] $applicationDisplayName, [string] $requ
 }
 
 
-Function UpdateLine([string] $line, [string] $value)
-{
-    $index = $line.IndexOf('=')
-    $delimiter = ';'
-    if ($index -eq -1)
-    {
-        $index = $line.IndexOf(':')
-        $delimiter = ','
-    }
-    if ($index -ige 0)
-    {
-        $line = $line.Substring(0, $index+1) + " "+'"'+$value+'"'+$delimiter
-    }
-    return $line
-}
-
-Function UpdateTextFile([string] $configFilePath, [System.Collections.HashTable] $dictionary)
-{
-    $lines = Get-Content $configFilePath
-    $index = 0
-    while($index -lt $lines.Length)
-    {
-        $line = $lines[$index]
-        foreach($key in $dictionary.Keys)
-        {
-            if ($line.Contains($key))
-            {
-                $lines[$index] = UpdateLine $line $dictionary[$key]
-            }
-        }
-        $index++
-    }
-
-    Set-Content -Path $configFilePath -Value $lines -Force
-}
-
 Set-Content -Value "<html><body><table>" -Path createdApps.html
 Add-Content -Value "<thead><tr><th>Application</th><th>AppId</th><th>Url in the Azure portal</th></tr></thead><tbody>" -Path createdApps.html
 
+$ErrorActionPreference = "Stop"
+
 Function ConfigureApplications
 {
-if (!$azureEnvironmentName)
-    {
-        $azureEnvironmentName = "AzureCloud"
-    }
 <#.Description
    This function creates the Azure AD applications for the sample in the provided Azure AD tenant and updates the
    configuration files in the client and service project  of the visual studio solution (App.Config and Web.Config)
    so that they are consistent with the Applications parameters
 #> 
+    $commonendpoint = "common"
+    
+    if (!$azureEnvironmentName)
+    {
+        $azureEnvironmentName = "AzureCloud"
+    }
 
     # $tenantId is the Active Directory Tenant. This is a GUID which represents the "Directory ID" of the AzureAD tenant
     # into which you want to create the apps. Look it up in the Azure portal in the "Properties" of the Azure AD.
@@ -177,25 +147,28 @@ if (!$azureEnvironmentName)
         $tenantId = $creds.Tenant.Id
     }
 
+    
+
     $tenant = Get-AzureADTenantDetail
     $tenantName =  ($tenant.VerifiedDomains | Where { $_._Default -eq $True }).Name
 
-    # Get the user running the script
+    # Get the user running the script to add the user as the app owner
     $user = Get-AzureADUser -ObjectId $creds.Account.Id
 
    # Create the client AAD application
-   Write-Host "Creating the AAD application (daemon-console)"
-   # Get a 2 years application key for the client Application
+   Write-Host "Creating the AAD application (daemon-console-cae)"
+   # Get a 6 months application key for the client Application
    $pw = ComputePassword
    $fromDate = [DateTime]::Now;
-   $key = CreateAppKey -fromDate $fromDate -durationInYears 2 -pw $pw
+   $key = CreateAppKey -fromDate $fromDate -durationInMonths 6 -pw $pw
    $clientAppKey = $pw
-   $clientAadApplication = New-AzureADApplication -DisplayName "daemon-console" `
+   # create the application 
+   $clientAadApplication = New-AzureADApplication -DisplayName "daemon-console-cae" `
                                                   -ReplyUrls "https://daemon" `
-                                                  -IdentifierUris "https://$tenantName/daemon-console" `
                                                   -PasswordCredentials $key `
                                                   -PublicClient $False
 
+   # create the service principal of the newly created application 
    $currentAppId = $clientAadApplication.AppId
    $clientServicePrincipal = New-AzureADServicePrincipal -AppId $currentAppId -Tags {WindowsAzureActiveDirectoryIntegratedApp}
 
@@ -203,23 +176,24 @@ if (!$azureEnvironmentName)
    $owner = Get-AzureADApplicationOwner -ObjectId $clientAadApplication.ObjectId
    if ($owner -eq $null)
    { 
-    Add-AzureADApplicationOwner -ObjectId $clientAadApplication.ObjectId -RefObjectId $user.ObjectId
-    Write-Host "'$($user.UserPrincipalName)' added as an application owner to app '$($clientServicePrincipal.DisplayName)'"
+        Add-AzureADApplicationOwner -ObjectId $clientAadApplication.ObjectId -RefObjectId $user.ObjectId
+        Write-Host "'$($user.UserPrincipalName)' added as an application owner to app '$($clientServicePrincipal.DisplayName)'"
    }
 
-   Write-Host "Done creating the client application (daemon-console)"
+
+   Write-Host "Done creating the client application (daemon-console-cae)"
 
    # URL of the AAD application in the Azure portal
    # Future? $clientPortalUrl = "https://portal.azure.com/#@"+$tenantName+"/blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/Overview/appId/"+$clientAadApplication.AppId+"/objectId/"+$clientAadApplication.ObjectId+"/isMSAApp/"
    $clientPortalUrl = "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/CallAnAPI/appId/"+$clientAadApplication.AppId+"/objectId/"+$clientAadApplication.ObjectId+"/isMSAApp/"
-   Add-Content -Value "<tr><td>client</td><td>$currentAppId</td><td><a href='$clientPortalUrl'>daemon-console</a></td></tr>" -Path createdApps.html
+   Add-Content -Value "<tr><td>client</td><td>$currentAppId</td><td><a href='$clientPortalUrl'>daemon-console-cae</a></td></tr>" -Path createdApps.html
 
    $requiredResourcesAccess = New-Object System.Collections.Generic.List[Microsoft.Open.AzureAD.Model.RequiredResourceAccess]
 
    # Add Required Resources Access (from 'client' to 'Microsoft Graph')
    Write-Host "Getting access from 'client' to 'Microsoft Graph'"
    $requiredPermissions = GetRequiredPermissions -applicationDisplayName "Microsoft Graph" `
-                                                -requiredApplicationPermissions "User.Read.All";
+                                                -requiredApplicationPermissions "User.Read.All" `
 
    $requiredResourcesAccess.Add($requiredPermissions)
 
@@ -230,21 +204,29 @@ if (!$azureEnvironmentName)
    # Update config file for 'client'
    $configFile = $pwd.Path + "\..\daemon-console\appsettings.json"
    Write-Host "Updating the sample code ($configFile)"
-   $dictionary = @{ "Tenant" = $tenantName;"ClientId" = $clientAadApplication.AppId;"ClientSecret" = $clientAppKey };
-   UpdateTextFile -configFilePath $configFile -dictionary $dictionary
    Write-Host ""
+   Write-Host -ForegroundColor Green "------------------------------------------------------------------------------------------------" 
    Write-Host "IMPORTANT: Please follow the instructions below to complete a few manual step(s) in the Azure portal":
    Write-Host "- For 'client'"
    Write-Host "  - Navigate to '$clientPortalUrl'"
-   Write-Host "  - Navigate to the API permissions page and click on 'Grant admin consent for {tenant}'"
+   Write-Host "  - Navigate to the API permissions page and click on 'Grant admin consent for {tenant}'" -ForegroundColor Red 
 
+   Write-Host -ForegroundColor Green "------------------------------------------------------------------------------------------------" 
+      if($isOpenSSL -eq 'Y')
+   {
+        Write-Host -ForegroundColor Green "------------------------------------------------------------------------------------------------" 
+        Write-Host "You have generated certificate using OpenSSL so follow below steps: "
+        Write-Host "Install the certificate on your system from current folder."
+        Write-Host -ForegroundColor Green "------------------------------------------------------------------------------------------------" 
+   }
    Add-Content -Value "</tbody></table></body></html>" -Path createdApps.html  
 }
 
 # Pre-requisites
 if ((Get-Module -ListAvailable -Name "AzureAD") -eq $null) { 
     Install-Module "AzureAD" -Scope CurrentUser 
-} 
+}
+
 Import-Module AzureAD
 
 # Run interactively (will ask you for the tenant ID)
