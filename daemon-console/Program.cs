@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography.X509Certificates; //Only import this if you are using certificate
+using System.Threading;
 using System.Threading.Tasks;
 using TimersTimer = System.Timers.Timer;
 
@@ -22,7 +23,6 @@ namespace daemon_console
     {
         // Even if this is a console application here, a daemon application is a confidential client application
         private static IConfidentialClientApplication _app;
-        private static MSALAppMemoryTokenCache _tokenCache;
         private static AuthenticationConfig _config;
 
         static void Main(string[] args)
@@ -74,7 +74,8 @@ namespace daemon_console
                     .ExecuteAsync();
 
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Token acquired");
+                Console.WriteLine($"Token acquired at {DateTime.Now}");
+                Thread.Sleep(TimeSpan.FromSeconds(2));
                 Console.ResetColor();
             }
             catch (MsalServiceException ex) when (ex.Message.Contains("AADSTS70011"))
@@ -123,9 +124,6 @@ namespace daemon_console
                     .WithClientCapabilities(new[] { "cp1" }) // Declare this app to be able to receive CAE events
                     .Build();
             }
-
-            // Attach an app token cache
-            _tokenCache = new MSALAppMemoryTokenCache(_app.AppTokenCache, _config.ClientId);
         }
 
         /// <summary>
@@ -138,6 +136,8 @@ namespace daemon_console
             {
                 Console.WriteLine($"{child.Name} = {child.Value}");
             }
+
+            Console.WriteLine($"End of data. Current Local Time: {DateTime.Now}");
         }
 
         /// <summary>
