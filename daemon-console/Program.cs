@@ -69,6 +69,7 @@ namespace daemon_console
             AuthenticationResult result = null;
             try
             {
+                // Acquire the token for MS Graph
                 result = await _app.AcquireTokenForClient(scopes)
                     .ExecuteAsync();
 
@@ -85,6 +86,7 @@ namespace daemon_console
                 Console.ResetColor();
             }
 
+            // Call MS Graph API
             if (result != null)
             {
                 var httpClient = new HttpClient();
@@ -122,7 +124,7 @@ namespace daemon_console
                     .Build();
             }
 
-            // Attach a token cache
+            // Attach an app token cache
             _tokenCache = new MSALAppMemoryTokenCache(_app.AppTokenCache, _config.ClientId);
         }
 

@@ -131,8 +131,6 @@ As a first step you'll need to:
 1. In the **Register an application page** that appears, enter your application's registration information:
    - In the **Name** section, enter a meaningful application name that will be displayed to users of the app, for example `daemon-console-cae`.
    - Under **Supported account types**, select **Accounts in this organizational directory only**.
-   - In the **Redirect URI (optional)** section, select **Web** in the combo-box.
-   - For the *Redirect URI*, enter `https://<your_tenant_name>/daemon-console-cae`, replacing `<your_tenant_name>` with the name of your **Azure AD** tenant.
 1. Select **Register** to create the application.
 1. In the app's registration screen, find and note the **Application (client) ID**. You use this value in your app's configuration file(s) later in your code.
 1. Select **Save** to save your changes.
@@ -150,7 +148,7 @@ As a first step you'll need to:
    - In the **Application permissions** section, select the **User.Read.All** in the list. Use the search box if necessary.
    - Select the **Add permissions** button at the bottom.
 
-1. At this stage, the permissions are assigned correctly but since the client app does not allow users to interact, the users' themselves cannot consent to these permissions. 
+1. At this stage, the permissions are assigned correctly but since the client app does not allow users to interact, the users' themselves cannot consent to these permissions.
    To get around this problem, we'd let the [tenant administrator consent on behalf of all users in the tenant](https://docs.microsoft.com/azure/active-directory/develop/v2-admin-consent).
    Select the **Grant admin consent for {tenant}** button, and then select **Yes** when you are asked if you want to grant consent for the requested permissions for all account in the tenant. You need to be an the tenant admin to be able to carry out this operation.
 
@@ -185,34 +183,40 @@ Start the application, it will display the users in the tenant.
 ### Create/Update a Conditional Access policy] for this app and CAE events
 
 1. Go to Azure Active Directory
-1. Open Security/Conditional Access
+1. Open Security->Conditional Access
 1. Select "New Policy" from upper menu
-1. Fill Name field
-1. Under "Assignments" select "Workload Identities" and click "Select service principals" radio button
-1. You can either use "Edit filter" for advanced option or just "Select" to choose a Service Principal(s) by name
+1. Fill the **Name** field first.
+1. Under "Assignments" select "Workload Identities" from the **What does this policy apply to?**.
+1. Select "Select service principals" radio. You can either use "Edit filter" for advanced option or just "Select" to choose a Service Principal(s) by name
    > Note: only single tenant service principals are supported by this time.
 1. Cloud apps or actions - choose "All cloud apps"
-1. Access Controls - select Grant/Block
+1. Under **Access Controls** >**Grant** -> **Block Access**
 1. Enable policy - set it to On
 1. Press "Create" button
 1. Run daemon application and observe the terminal. After some time you will start seeing error like this: ![policy-blocking-error](./ReadmeFiles/access-policy-blocking.png)
-1. To stop this behavior you either turn the policy Off or delete it. Then after some time the terminal will start displaying Graph data as usual.
+1. Wait for the CA policy to be created.
 
 ### Declaring Client Capability
 
-Azure AD and the CAE enabled resources, like MS Graph in this example, would not raise CAE events unless the client (this app) declares itself to be capable of handling CAE events.
+Azure AD and the CAE enabled resources, like MS Graph in this example, would not act upon CAE events unless the client (this app) declares itself to be capable of handling CAE events.
 This is done by sending a [client capability](https://docs.microsoft.com/azure/active-directory/develop/claims-challenge#client-capabilities) declaration to Azure AD.
 
-The following code is added.
+The following code is added in `Program.cs` , `PrepareConfidentialClient`.
 
-[TODO]
+```CSharp
+_app = ConfidentialClientApplicationBuilder.Create(_config.ClientId)
+                    .WithClientSecret(_config.ClientSecret)
+                    .WithAuthority(new Uri(_config.Authority))
+                    .WithClientCapabilities(new[] { "cp1" }) // Declare this app to be able to receive CAE events
+                    .Build();
+```
 
 Once the client application announces that its capable, two changes take place:
 
 1. Azure AD sends an Access Token for MS Graph which is valid for 24 hours instead of the standard 1 hour.
 1. MS graph will receive CAE events and can potentially reject a valid Access token from a capable client if a CAA event occurs.
 
-### Checking CAE by disabling Service Principal
+### Testing CAE events by disabling Service Principal
 
 1. Run the application and make sure you get users graph data in continues manner. Leave the application in running state.
 1. Open PowerShell as Administrator.
@@ -235,7 +239,7 @@ Once the client application announces that its capable, two changes take place:
 >if you're using an Azure environment other than global, like PPE, use [-AzureEnvironmentName AzurePPE](https://docs.microsoft.com/powershell/module/azuread/connect-azuread)
 
 1. Observe the daemon application terminal and note that after some time you will start getting next error ![sp-disabled-error](./ReadmeFiles/sp-disabled-error.png)
-1.You can re-test this scenario by re-enabling the Service Principal using the following command.
+1.You can re-test this scenario by re-enabling the Service Principal using the following command and re-starting the console app again.
 
    ```PowerShell
 
@@ -245,25 +249,27 @@ Once the client application announces that its capable, two changes take place:
 
 ## About the code
 
-The relevant code for this sample is in the `Program.cs` file, in the `RunAsync()` method. The steps are:
+The relevant code for this sample is in the `Program.cs` file, and in the `PrepareConfidentialClient()` in the `RunAsync()` method. The steps are:
 
 1. Create the MSAL confidential client application.
 
-    Important note: even if we are building a console application, it is a daemon, and therefore a confidential client application, as it does not
-    access Web APIs on behalf of a user, but on its own application behalf.
+    Important note: even if we are building a console application, it is a daemon, and therefore a confidential client application, as it does not access Web APIs on behalf of a user, but on its own application behalf.
 
     ```CSharp
-    IConfidentialClientApplication app;
-    app = ConfidentialClientApplicationBuilder.Create(config.ClientId)
-                                              .WithClientSecret(config.ClientSecret)
-                                              .WithAuthority(new Uri(config.Authority))
-                                              .Build();
+      _app = ConfidentialClientApplicationBuilder.Create(_config.ClientId)
+         .WithClientSecret(_config.ClientSecret)
+         .WithAuthority(new Uri(_config.Authority))
+         .WithClientCapabilities(new[] { "cp1" }) // Declare this app to be able to receive CAE events
+         .Build();
+
+      // Attach an app token cache
+      _tokenCache = new MSALAppMemoryTokenCache(_app.AppTokenCache, _config.ClientId);
     ```
 
-2. Define the scopes.
+2. Acquire a token and make a call to MS Graph
 
-   Specific to client credentials, you don't specify, in the code, the individual scopes you want to access. You have statically declared
-   them during the application registration step. Therefore the only possible scope is "resource/.default" (here "https://graph.microsoft.com/.default")
+   Specific to client credentials, you don't specify, in the code, the individual scopes you want to access. You have to statically declare
+   them and admin consent to them during the application registration steps as there will be no users in-front of this app to consent. Therefore the only possible scope is "resource/.default" ( **https://graph.microsoft.com/.default**"**)
    which means "the static permissions defined in the application"
 
     ```CSharp
@@ -271,35 +277,44 @@ The relevant code for this sample is in the `Program.cs` file, in the `RunAsync(
     // application permissions need to be set statically (in the portal or by PowerShell), and then granted by
     // a tenant administrator
     string[] scopes = new string[] { "https://graph.microsoft.com/.default" };
+
+   AuthenticationResult result = null;
+   try
+   {
+         // Acquire the token for MS Graph
+         result = await _app.AcquireTokenForClient(scopes)
+            .ExecuteAsync();
+
+         Console.ForegroundColor = ConsoleColor.Green;
+         Console.WriteLine("Token acquired");
+         Console.ResetColor();
+   }
+   catch (MsalServiceException ex) when (ex.Message.Contains("AADSTS70011"))
+   {
+         // Invalid scope. The scope has to be of the form "https://resourceurl/.default"
+         // Mitigation: change the scope to be as expected
+         Console.ForegroundColor = ConsoleColor.Red;
+         Console.WriteLine("Scope provided is not supported");
+         Console.ResetColor();
+   }
+
+   // Call MS Graph API
+   if (result != null)
+   {
+         var httpClient = new HttpClient();
+         var apiCaller = new ProtectedApiCallHelper(httpClient);
+         
     ```
 
-3. Acquire the token
+3. Call the API
 
-    ```CSharp
-    AuthenticationResult result = null;
-    try
-    {
-        result = await app.AcquireTokenForClient(scopes)
-                          .ExecuteAsync();
-    }
-    catch(MsalServiceException ex)
-    {
-        // AADSTS70011
-        // Invalid scope. The scope has to be of the form "https://resourceurl/.default"
-        // Mitigation: this is a dev issue. Change the scope to be as expected
-    }
-    ```
-
-4. Call the API
-
-    In that case calling "https://graph.microsoft.com/v1.0/users" with the access token as a bearer token.
+    In this case calling "https://graph.microsoft.com/v1.0/users" with the access token as a bearer token.
 
 ## Troubleshooting
 
 ### Did you forget to provide admin consent? This is needed for daemon apps
 
-If you get an error when calling the API `Insufficient privileges to complete the operation.`, this is because the tenant administrator has not granted permissions
-to the application. See step 6 of [Register the client app (daemon-console-cae)](#register-the-client-app-daemon-console-cae) above.
+If you get an error when calling the API `Insufficient privileges to complete the operation.`, this is because the tenant administrator has not granted consent to the permissions requested by the application. See the step [Register the client app (daemon-console-cae)](#register-the-client-app-daemon-console-cae) above.
 
 You will typically see, on the output window, something like the following:
 
@@ -316,7 +331,6 @@ Content: {
   }
 }
 ```
-
 
 ## Community Help and Support
 
@@ -338,12 +352,20 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 
 ## More information
 
-For more information, see MSAL.NET's conceptual documentation:
+- [Microsoft identity platform (Azure Active Directory for developers)](https://docs.microsoft.com/azure/active-directory/develop/)
+- [Overview of Microsoft Authentication Library (MSAL)](https://docs.microsoft.com/azure/active-directory/develop/msal-overview)
+- [Quickstart: Register an application with the Microsoft identity platform (Preview)](https://docs.microsoft.com/azure/active-directory/develop/quickstart-register-app)
+- [Understanding Azure AD application consent experiences](https://docs.microsoft.com/azure/active-directory/develop/application-consent-experience)
+- [Understand user and admin consent](https://docs.microsoft.com/azure/active-directory/develop/howto-convert-app-to-be-multi-tenant#understand-user-and-admin-consent)
+- [Application and service principal objects in Azure Active Directory](https://docs.microsoft.com/azure/active-directory/develop/app-objects-and-service-principals)
+- [Authentication Scenarios for Azure AD](https://docs.microsoft.com/azure/active-directory/develop/authentication-flows-app-scenarios).
+- [Claims challenges, claims requests, and client capabilities](https://docs.microsoft.com/azure/active-directory/develop/claims-challenge)
 
 - [Quickstart: Register an application with the Microsoft identity platform](https://docs.microsoft.com/azure/active-directory/develop/quickstart-register-app)
 - [Quickstart: Configure a client application to access web APIs](https://docs.microsoft.com/azure/active-directory/develop/quickstart-configure-app-access-web-apis)
 - [Acquiring a token for an application with client credential flows](https://aka.ms/msal-net-client-credentials)
-
+- [MSAL code samples](https://aka.ms/aadcodesamples)
+- 
 For more information about the underlying protocol:
 
 - [Microsoft identity platform and the OAuth 2.0 client credentials flow](https://docs.microsoft.com/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow)
