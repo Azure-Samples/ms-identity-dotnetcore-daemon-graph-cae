@@ -2,7 +2,6 @@
 page_type: sample
 languages:
 - csharp
-- powershell
 products:
   - dotnet-core
   - ms-graph
