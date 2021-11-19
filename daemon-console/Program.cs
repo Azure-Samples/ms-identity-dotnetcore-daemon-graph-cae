@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography.X509Certificates; //Only import this if you are using certificate
+using System.Threading;
 using System.Threading.Tasks;
 using TimersTimer = System.Timers.Timer;
 
@@ -22,7 +23,6 @@ namespace daemon_console
     {
         // Even if this is a console application here, a daemon application is a confidential client application
         private static IConfidentialClientApplication _app;
-        private static MSALAppMemoryTokenCache _tokenCache;
         private static AuthenticationConfig _config;
 
         static void Main(string[] args)
@@ -127,9 +127,6 @@ namespace daemon_console
                     .WithClientCapabilities(new[] { "cp1" }) // Declare this app to be able to receive CAE events
                     .Build();
             }
-
-            // Attach an app token cache
-            _tokenCache = new MSALAppMemoryTokenCache(_app.AppTokenCache, _config.ClientId);
         }
 
         /// <summary>
