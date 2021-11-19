@@ -74,7 +74,7 @@ namespace daemon_console
                     .ExecuteAsync();
 
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Token acquired");
+                Console.WriteLine("Token acquired from MSAL");
                 Console.ResetColor();
             }
             catch (MsalServiceException ex) when (ex.Message.Contains("AADSTS70011"))
@@ -91,6 +91,10 @@ namespace daemon_console
             {
                 var httpClient = new HttpClient();
                 var apiCaller = new ProtectedApiCallHelper(httpClient);
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"{DateTime.Now.ToString("o")}-Calling MS Graph ");
+                Console.ResetColor();
                 await apiCaller.CallWebApiAndProcessResultASync($"{_config.ApiUrl}v1.0/users", result.AccessToken, Display);
             }
         }

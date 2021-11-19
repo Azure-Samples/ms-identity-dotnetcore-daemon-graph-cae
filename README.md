@@ -41,6 +41,7 @@ We then [enable CAE](https://docs.microsoft.com/azure/active-directory/condition
 The order of processing is roughly as follows:
 
 - The console app first authenticates as itself (using the [Client Credentials flow](https://docs.microsoft.com/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow)) and gets an [Access Token](https://aka.ms/access-tokens) from Azure AD for Microsoft Graph.
+- It declares itself as a [client app capable of handling CAE events](https://docs.microsoft.com/azure/active-directory/develop/claims-challenge#client-capabilities).
 - It then calls the MS Graph API to fetch a list of users in a loop of 5 seconds.
 - the developer can then use the provided steps to disable the Service Principal (SP) of this app. This raises a CAE event for MS Graph.
 - Once the SP is disabled, MS Graph will then reject the Access Token even though its still within its validity.
@@ -81,11 +82,13 @@ or download and extract the repository .zip file.
     dotnet restore
 ```
 
+> You can also use Visual Studio for the provided project.
+
 ### Register the sample application(s) with your Azure Active Directory tenant
 
 There is one project in this sample. To register it, you can:
 
-- follow the steps below for manually register your apps
+- follow the [steps below ](#choose-the-azure-ad-tenant-where-you-want-to-create-your-applications)for manually register your apps
 - or use PowerShell scripts that:
   - **automatically** creates the Azure AD applications and related objects (passwords, permissions, dependencies) for you.
   - modify the projects' configuration files.
@@ -139,7 +142,7 @@ As a first step you'll need to:
    - Select one of the available key durations (**6 months**, **12 months** or **Custom**) as per your security posture.
    - The generated key value will be displayed when you select the **Add** button. Copy and save the generated value for use in later steps.
    - You'll need this key later in your code's configuration files. This key value will not be displayed again, and is not retrievable by any other means, so make sure to note it from the Azure portal before navigating to any other screen or blade.
-    > :bulb: For enhanced security, consider [using certificates](https://github.com/AzureAD/microsoft-identity-web/wiki/Certificates) instead of client secrets.
+
 1. In the app's registration screen, select the **API permissions** blade in the left to open the page where we add access to the APIs that your application needs.
    - Select the **Add a permission** button and then,
    - Ensure that the **Microsoft APIs** tab is selected.
@@ -235,14 +238,12 @@ Once the client application announces that its capable, two changes take place:
    Set-AzureADServicePrincipal -ObjectId \<Id\> -AccountEnabled $False
    ```
 
->if you're using an Azure environment other than global, like PPE, use [-AzureEnvironmentName AzurePPE](https://docs.microsoft.com/powershell/module/azuread/connect-azuread)
-
 1. Observe the daemon application terminal and note that after some time you will start getting next error ![sp-disabled-error](./ReadmeFiles/sp-disabled-error.png)
-1.You can re-test this scenario by re-enabling the Service Principal using the following command and re-starting the console app again.
+1.You can re-test this scenario by re-enabling the Service Principal using the following command and re-starting the console app again. Please note that Service Principals, once disabled can only be enabled after 15 minutes.
 
    ```PowerShell
 
-   # Disable the service principal of this app
+   # Enable the service principal of this app
    Set-AzureADServicePrincipal -ObjectId \<Id\> -AccountEnabled $True
    ```
 
@@ -268,7 +269,7 @@ The relevant code for this sample is in the `Program.cs` file, and in the `Prepa
 2. Acquire a token and make a call to MS Graph
 
    Specific to client credentials, you don't specify, in the code, the individual scopes you want to access. You have to statically declare
-   them and admin consent to them during the application registration steps as there will be no users in-front of this app to consent. Therefore the only possible scope is "resource/.default" ( **https://graph.microsoft.com/.default**"**)
+   them and admin consent to them during the application registration steps as there will be no users in-front of this app to consent. Therefore the only possible scope is "resource/.default" ( **https://graph.microsoft.com/.default**")
    which means "the static permissions defined in the application"
 
     ```CSharp
@@ -364,7 +365,7 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 - [Quickstart: Configure a client application to access web APIs](https://docs.microsoft.com/azure/active-directory/develop/quickstart-configure-app-access-web-apis)
 - [Acquiring a token for an application with client credential flows](https://aka.ms/msal-net-client-credentials)
 - [MSAL code samples](https://aka.ms/aadcodesamples)
-- 
+
 For more information about the underlying protocol:
 
 - [Microsoft identity platform and the OAuth 2.0 client credentials flow](https://docs.microsoft.com/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow)
