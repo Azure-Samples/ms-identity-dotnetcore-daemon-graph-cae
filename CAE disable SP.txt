@@ -1,0 +1,7 @@
+Connect-AzureAD -AzureEnvironmentName AzurePPE
+
+//Disable SP
+Set-AzureADServicePrincipal -ObjectId ed407bbf-5e81-42cf-ae35-b3a96c894b2e -AccountEnabled $False
+
+//Enable SP
+Set-AzureADServicePrincipal -ObjectId ed407bbf-5e81-42cf-ae35-b3a96c894b2e -AccountEnabled $True
