@@ -3,7 +3,7 @@ page_type: sample
 languages:
 - csharp
 products:
-  - dotnet-core
+  - dotnet
   - ms-graph
   - azure-active-directory
   - office-ms-graph
